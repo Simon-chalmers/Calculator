@@ -1,0 +1,163 @@
+package calc;
+
+import java.util.*;
+
+import static java.lang.Double.NaN;
+import static java.lang.Math.pow;
+
+/*
+ *   A calculator for rather simple arithmetic expressions
+ *
+ *   This is not the program, it's a class declaration (with methods) in it's
+ *   own file (which must be named Calculator.java)
+ *
+ *   NOTE:
+ *   - No negative numbers implemented
+ */
+class Calculator {
+
+    // Here are the only allowed instance variables!
+    // Error messages (more on static later)
+    final static String MISSING_OPERAND = "Missing or bad operand";
+    final static String DIV_BY_ZERO = "Division with 0";
+    final static String MISSING_OPERATOR = "Missing operator or parenthesis";
+    private final static String OP_NOT_FOUND = "Operator not found";
+
+    // Definition of operators
+    private final static String OPERATORS = "+-*/^";
+
+    // Method used in REPL
+    double eval(String expr) {
+        if (expr.length() == 0) {
+            return NaN;
+        }
+        List<String> tokens = tokenize(expr);
+        List<String> postfix = infix2Postfix(tokens);
+        return evalPostfix(postfix);
+    }
+
+    // ------  Evaluate RPN expression -------------------
+
+    double evalPostfix(List<String> postfix) {
+        Stack<Double> stack = new Stack<>();
+
+        for(String token : postfix){
+            if(OPERATORS.contains(token)){
+                if(stack.size() > 1) {
+                    double op1 = stack.pop();
+                    double op2 = stack.pop();
+
+                    stack.push(applyOperator(token, op1, op2));
+                }else{
+                    throw new IllegalArgumentException(MISSING_OPERAND);
+                }
+            }else{
+                stack.push(Double.parseDouble(token));
+            }
+        }
+        if(stack.size() == 1){
+            return stack.pop();
+        }else{
+            return -1;
+        }
+    }
+
+    private double applyOperator(String op, double d1, double d2) {
+        switch (op) {
+            case "+":
+                return d1 + d2;
+            case "-":
+                return d2 - d1;
+            case "*":
+                return d1 * d2;
+            case "/":
+                if (d1 == 0) {
+                    throw new IllegalArgumentException(DIV_BY_ZERO);
+                }
+                return d2 / d1;
+            case "^":
+                return pow(d2, d1);
+        }
+        throw new RuntimeException(OP_NOT_FOUND);
+    }
+
+    // ------- Infix 2 Postfix ------------------------
+
+    List<String> infix2Postfix(List<String> tokens) {
+        Stack<String> stack = new Stack<>();
+        List<String> postFix = new ArrayList<>();
+
+        for(String token : tokens){
+
+            if(OPERATORS.contains(token)){
+                while(!stack.isEmpty() && !stack.peek().equals("(") && hasHigherPrecedence(stack.peek(), token)){
+                    postFix.add(stack.pop());
+                }
+                stack.push(token);
+            }else if(token.equals("(")){
+                stack.push(token);
+            }else if(token.equals(")")){
+                while(!stack.isEmpty() && !stack.peek().equals("(")){
+                    postFix.add(stack.pop());
+                }
+                stack.pop();
+            }else{
+                postFix.add(token);
+            }
+        }
+        while(!stack.isEmpty()){
+            postFix.add(stack.pop());
+        }
+
+        return postFix; // TODO
+    }
+
+    private boolean hasHigherPrecedence(String topOfStack, String token){
+        if(getAssociativity(token).equals(Assoc.RIGHT)) {
+            return getPrecedence(topOfStack) > getPrecedence(token);
+        }
+        return getPrecedence(topOfStack) >= getPrecedence(token);
+    }
+
+    private int getPrecedence(String op) {
+        if ("+-".contains(op)) {
+            return 2;
+        } else if ("*/".contains(op)) {
+            return 3;
+        } else if ("^".contains(op)) {
+            return 4;
+        } else {
+            throw new RuntimeException(OP_NOT_FOUND);
+        }
+    }
+
+    private Assoc getAssociativity(String op) {
+        if ("+-*/".contains(op)) {
+            return Assoc.LEFT;
+        } else if ("^".contains(op)) {
+            return Assoc.RIGHT;
+        } else {
+            throw new RuntimeException(OP_NOT_FOUND);
+        }
+    }
+
+    enum Assoc {
+        LEFT,
+        RIGHT
+    }
+
+    // ---------- Tokenize -----------------------
+    List<String> tokenize(String expr) {
+
+        expr = expr.replaceAll("\\s+","");
+        List<String> list;
+
+        list = Arrays.asList(expr.split("((?<=[+\\-/*^()])|(?=[+\\-/*^()]))"));
+
+
+        //System.out.println("Expression: " + expr);
+        //System.out.println("List: " + list.toString());
+
+        return list;
+    }
+}
